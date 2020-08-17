@@ -3,7 +3,7 @@
 ## Runtime controls
 * f/F - Decrease/increase feed rate.
 * k/K - Decrease/increase kill rate.
-* t/T - Decrase/increase time scale.
+* t/T - Decrease/increase time scale.
 * a/A - Decrease/increase chemical A's diffusion rate.
 * b/B - Decrease/increase chemical B's diffusion rate.
 * 1 - 3x3 diffusion laplacian; 1/r^2 weights.
