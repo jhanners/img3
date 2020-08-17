@@ -9,6 +9,7 @@
 * 1 - 3x3 diffusion laplacian; 1/r^2 weights.
 * 2 - 3x3 diffusion laplacian; 1/r weights.
 * 3 - 3x3 cross (no corners) diffusion laplacian; 1/r weights.
+* 4 - 3x3 cross (no corners) diffusion laplacian; 1/r weights; add a small amount of noise.
 * <space> - Wipe the display.
 * . - Put a dot of chemical B in the center.
 * <mouse click> - Put a dot of chemical B under the mouse cursor.
