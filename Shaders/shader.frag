@@ -43,6 +43,7 @@ void main()
 
     vec2 step = vec2(1.0 / screenResolution.x, 1.0 / screenResolution.y);
     vec2 texel0 = gl_FragCoord.xy / screenResolution.xy;
+    
     vec2 texel;
     vec2 velocity;
 
@@ -184,11 +185,25 @@ void main()
         float dist = sqrt(dot(dist2, dist2));
         if (dist < 50.0)
         {
-            float magnitude = 0.001 * cos(time) * sin(time);
-            velocity += vec2(magnitude * sin(time * 1.0), magnitude * cos(time * 1.0)) / (dist * dist);
+            float magnitude = 0.001; // * cos(time) * sin(time);
+            velocity += magnitude * vec2(sin(time * 1.0), cos(time * 1.0)) / (dist * dist);
         }
     }
-    
+
+    // Pushing outward from the center.
+    if (true)
+    {
+        vec2 dist2 = (texel.xy - vec2(0.5,0.5)) * screenResolution;
+        float dist = sqrt(dot(dist2, dist2));
+        float radius = max(screenResolution.x, screenResolution.y);
+        if (dist <= radius)
+        {
+            float height = sqrt(radius * radius - dist * dist);
+            height /= radius;
+            velocity += 0.000000001 * height * dist2;
+        }
+    }
+
     if (false)
     {
         vec2 dist2 = (texel.xy - vec2(0.5,0.45)) * screenResolution;
@@ -202,22 +217,30 @@ void main()
     
     // decay velocity
 
-    if (velocity.x > 0)
+    if (false)
     {
-        velocity.x = max(0, velocity.x - velocity_decay);
-    }
-    else if (velocity.x < 0)
-    {
-        velocity.x = min(0, velocity.x + velocity_decay);
+        if (velocity.x > 0)
+        {
+            velocity.x = max(0, velocity.x - velocity_decay);
+        }
+        else if (velocity.x < 0)
+        {
+            velocity.x = min(0, velocity.x + velocity_decay);
+        }
+
+        if (velocity.y > 0)
+        {
+            velocity.y = max(0, velocity.y - velocity_decay);
+        }
+        else if (velocity.y < 0)
+        {
+            velocity.y = min(0, velocity.y + velocity_decay);
+        }
     }
 
-    if (velocity.y > 0)
+    if (true)
     {
-        velocity.y = max(0, velocity.y - velocity_decay);
-    }
-    else if (velocity.y < 0)
-    {
-        velocity.y = min(0, velocity.y + velocity_decay);
+        velocity *= 0.999;
     }
 
     // clamp output
