@@ -1,17 +1,19 @@
 # img3 - Gray-Scott Reaction-Diffusion Simulation
 
 ## Runtime controls
-* f/F - Decrease/increase feed rate.
-* k/K - Decrease/increase kill rate.
-* t/T - Decrease/increase time scale.
-* a/A - Decrease/increase chemical A's diffusion rate.
-* b/B - Decrease/increase chemical B's diffusion rate.
-* 1 - 3x3 diffusion laplacian; 1/r^2 weights.
-* 2 - 3x3 diffusion laplacian; 1/r weights.
-* 3 - 3x3 cross (no corners) diffusion laplacian; 1/r weights.
-* 4 - 3x3 cross (no corners) diffusion laplacian; 1/r weights; add a small amount of noise.
+* 'a'/'A' - Decrease/increase chemical A's diffusion rate.
+* 'b'/'B' - Decrease/increase chemical B's diffusion rate.
+* 'f'/'F' - Decrease/increase feed rate.
+* 'k'/'K' - Decrease/increase kill rate.
+* 'l' - Toggle fluid flow effects.  Default is on.
+* 't'/'T' - Decrease/increase time scale.
+* 'w' - Toggle random walk through the feed/kill parameter space.  Default is on.
+* '1' - 3x3 diffusion laplacian; 1/r^2 weights.  This is the default.
+* '2' - 3x3 diffusion laplacian; 1/r weights.
+* '3' - 3x3 cross (no corners) diffusion laplacian; 1/r weights.
+* '4' - 3x3 cross (no corners) diffusion laplacian; 1/r weights; add a small amount of noise.
 * `<space>` - Wipe the display.
-* . - Put a dot of chemical B in the center.
+* '.' - Put a dot of chemical B in the center.
 * `<mouse click>` - Put a dot of chemical B under the mouse cursor.
 * `<mouse click and drag>` - Create a trail of chemical B.
 
