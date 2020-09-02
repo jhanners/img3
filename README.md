@@ -16,6 +16,7 @@
 * `.` - Put a dot of chemical B in the center.
 * `<mouse click>` - Put a dot of chemical B under the mouse cursor.
 * `<mouse click and drag>` - Create a trail of chemical B.
+* `Esc` - If maximized, restore window; else quit.
 
 ## References
 * [Gray-Scott tutorial](https://www.karlsims.com/rd.html)
