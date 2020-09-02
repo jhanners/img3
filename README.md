@@ -1,4 +1,4 @@
-# img3 - Gray-Scott Reaction-Diffusion Imagery
+# img3 - Gray-Scott Reaction-Diffusion Simulation
 
 ## Runtime controls
 * f/F - Decrease/increase feed rate.
