@@ -1,4 +1,5 @@
-﻿using OpenTK;
+﻿using img3;
+using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
@@ -56,21 +57,20 @@ namespace LearnOpenGL
 
         private float time;
         private float lastFpsTime;
+        private float lastDotTime;
+        private readonly float dotInterval = 10.0f;
         private int frameCounter;
 
-        // default
-        private float feed = 0.037f;
-        private float kill = 0.060f;
+        private float feed = 0.5f;
+        private float kill = 0.5f;
 
-        // chaos
-        // private float feed = 0.024f;
-        // private float kill = 0.052f;
+        private ParameterSpace feedKillWarp = new ParameterSpace();
 
         private float feedMagnitude = 0.002f;
-        private float feedIncrement = 0.001f;
+        private float feedIncrement = 0.01f;
 
         private float killMagnitude = 0.002f;
-        private float killIncrement = 0.001f;
+        private float killIncrement = 0.01f;
 
         private Vector2 diffusion = new Vector2(1.0f, 0.5f);
         private float diffusionIncrement = 0.001f;
@@ -84,9 +84,26 @@ namespace LearnOpenGL
         private int renderIterationCount = 50;
         private int renderIterationCountIncrement = 0;
 
-        private float brushWipeCanvas = 1.0f;
-        private float brushPaintDot = 2.0f;
-        private int laplacian = 3;
+        private static readonly float brushWipeCanvas = 1.0f;
+        private static readonly float brushPaintDot = 2.0f;
+        private static readonly float brushPaintNoise = 3.0f;
+        private int laplacian = 1;
+
+        private float walkSegmentDurationSeconds = 10.0f;
+        private float walkDurationRemaining = 0.0f;
+        private float walkFeedIncrementPerSecond;
+        private float walkKillIncrmentPerSecond;
+        private float walkTargetFeed;
+        private float walkTargetKill;
+        private bool isWalkEnabled = true;
+        private bool isFlowEnabled = true;
+
+        private Random random = new Random();
+
+        private float lightRadius = 5.0f;
+        private float lightHeight = 1.5f;
+        private float lightPeriod = 60.0f;
+        private Vector3 lightCenter = new Vector3(0.5f, 0.5f, 0.0f);
 
         public Window(
             int width,
@@ -236,7 +253,7 @@ namespace LearnOpenGL
 
         protected override void OnMove(EventArgs e)
         {
-            DoResize();
+            // DoResize();
 
             base.OnMove(e);
         }
@@ -278,6 +295,53 @@ namespace LearnOpenGL
             // float deltaTime = (float)e.Time * this.timeMultiplier;
             float deltaTime = Math.Min(this.maxAllowedDeltaTime, (float)e.Time / this.renderIterationCount);
             this.frameCounter++;
+
+            if (this.lastDotTime == 0)
+            {
+                this.lastDotTime = -this.dotInterval + 1;
+            }
+
+            if ((this.time - this.lastDotTime) > this.dotInterval)
+            {
+                this.brush = new Vector4(0.5f, 0.5f, 0.0f, Window.brushPaintDot);
+                this.lastDotTime = this.time;
+            }
+
+            //float currentFeed = this.feed + (float)Math.Cos(this.time / 1.9) * this.feedMagnitude;
+            //float currentKill = this.kill + (float)Math.Cos(this.time / 2.1) * this.killMagnitude;
+
+            float lightAngleRadians = 2.0f * (float)Math.PI * this.time / this.lightPeriod;
+            Vector3 lightPosition = new Vector3(
+                this.lightRadius * (float)Math.Cos(lightAngleRadians),
+                this.lightRadius * (float)Math.Sin(lightAngleRadians),
+                this.lightHeight)
+                + this.lightCenter;
+
+            float currentFeed = this.feed;
+            float currentKill = this.kill;
+            
+            Vector2 warpedFeedKill = this.feedKillWarp.Warp(currentFeed, currentKill);
+            float warpedFeed = warpedFeedKill.X;
+            float warpedKill = warpedFeedKill.Y;
+
+            if (this.isWalkEnabled)
+            {
+                this.walkDurationRemaining -= (float)e.Time;
+                this.feed += this.walkFeedIncrementPerSecond * (float)e.Time;
+                this.feed = MathHelper.Clamp(this.feed, 0.0f, 1.0f);
+                this.kill += this.walkKillIncrmentPerSecond * (float)e.Time;
+                this.kill = MathHelper.Clamp(this.kill, 0.0f, 1.0f);
+
+                if (this.walkDurationRemaining <= 0)
+                {
+                    this.walkDurationRemaining = this.walkSegmentDurationSeconds;
+                    this.walkTargetFeed = (float)this.random.NextDouble();
+                    this.walkTargetKill = (float)this.random.NextDouble();
+                    this.walkFeedIncrementPerSecond = (this.walkTargetFeed - this.feed) / this.walkSegmentDurationSeconds;
+                    this.walkKillIncrmentPerSecond = (this.walkTargetKill - this.kill) / this.walkSegmentDurationSeconds;
+                }
+            }
+
             if (this.time - this.lastFpsTime > 1)
             {
                 Console.WriteLine(
@@ -287,6 +351,8 @@ namespace LearnOpenGL
                     $"FPS * Rend: {this.frameCounter * this.renderIterationCount}; " +
                     $"Feed: {this.feed:0.000}; " +
                     $"Kill: {this.kill:0.000}; " +
+                    $"WarpedFeed: {warpedFeed:0.0000}; " +
+                    $"WarpedKill: {warpedKill:0.0000}; " +
                     $"Time: {this.timeMultiplier:00.0}; " +
                     $"diffAB: {this.diffusion.X:0.000}, {this.diffusion.Y:0.000}; " +
                     $"eTime: {e.Time:0.00000}; " +
@@ -307,9 +373,6 @@ namespace LearnOpenGL
             }
 
             this.maxObservedDeltaTime = Math.Max(deltaTime, this.maxObservedDeltaTime);
-
-            float currentFeed = this.feed + (float)Math.Cos(this.time / 1.9) * this.feedMagnitude;
-            float currentKill = this.kill + (float)Math.Cos(this.time / 2.1) * this.killMagnitude;
 
             for (int i = 0; i < this.renderIterationCount; i++)
             {
@@ -342,6 +405,13 @@ namespace LearnOpenGL
                 // GL.MemoryBarrier(MemoryBarrierFlags.FramebufferBarrierBit);
 
                 //
+                // Set per-frame variables.
+                //
+
+                // Only flow on the last frame we render in this pass.
+                bool isFlowing = this.isFlowEnabled && (i == this.renderIterationCount - 1);
+
+                //
                 // Draw scene
                 //
 
@@ -355,12 +425,13 @@ namespace LearnOpenGL
                 }
                 this.shaderProgram.Uniform("deltaTime", Math.Min(this.maxAllowedDeltaTime, deltaTime * this.timeMultiplier));
                 this.shaderProgram.Uniform("diffusion", this.diffusion);
-                this.shaderProgram.Uniform("feed", currentFeed);
+                this.shaderProgram.Uniform("feed", warpedFeed);
                 this.shaderProgram.Uniform("inputTexture", 0);
-                this.shaderProgram.Uniform("kill", currentKill);
+                this.shaderProgram.Uniform("kill", warpedKill);
                 this.shaderProgram.Uniform("laplacian", this.laplacian);
                 this.shaderProgram.Uniform("screenResolution", new Vector2(this.Width, this.Height));
-                // this.shaderProgram.Uniform("time", this.time);
+                this.shaderProgram.Uniform("time", this.time);
+                this.shaderProgram.Uniform("flow", (int)(isFlowing ? 1 : 0));
                 this.surfaceVAO.BindVertexArray();
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
@@ -382,6 +453,7 @@ namespace LearnOpenGL
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
             this.screenShader.UseProgram();
+            this.screenShader.Uniform("lightPosition", lightPosition);
             this.screenShader.Uniform("screenResolution", new Vector2(this.Width, this.Height));
             this.screenShader.Uniform("time", time);
             textureA.BindTexture(0);
@@ -401,7 +473,7 @@ namespace LearnOpenGL
 
         private void InitBrush()
         {
-            this.brush = new Vector4(0.0f, 0.0f, 0.0f, this.brushWipeCanvas);
+            this.brush = new Vector4(0.0f, 0.0f, 0.0f, Window.brushWipeCanvas);
         }
 
         private void PaintWithBrush(float x, float y)
@@ -410,7 +482,7 @@ namespace LearnOpenGL
                 x / this.Width,
                 (this.Height - y) / this.Height,
                 0.0f,
-                this.brushPaintDot);
+                Window.brushPaintDot);
 
             this.currentMousePosition = new Vector2(
                 x / this.Width,
@@ -462,6 +534,18 @@ namespace LearnOpenGL
         {
             switch (e.KeyChar)
             {
+                case 'w':
+                    this.isWalkEnabled = !this.isWalkEnabled;
+                    if (this.isWalkEnabled)
+                    {
+                        this.walkDurationRemaining = 0;
+                    }
+                    break;
+
+                case 'l':
+                    this.isFlowEnabled = !this.isFlowEnabled;
+                    break;
+
                 case 'F':
                     this.feed = Math.Min(1.0f, this.feed + this.feedIncrement);
                     break;
@@ -515,7 +599,11 @@ namespace LearnOpenGL
                     break;
 
                 case '.':
-                    this.brush = new Vector4(0.5f, 0.5f, 0.0f, this.brushPaintDot);
+                    this.brush = new Vector4(0.5f, 0.5f, 0.0f, Window.brushPaintDot);
+                    break;
+
+                case 'n':
+                    this.brush = new Vector4((float)this.random.Next(), (float)this.random.Next(), (float)this.random.Next(), Window.brushPaintNoise);
                     break;
 
                 case '1':

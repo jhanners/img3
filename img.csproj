@@ -50,6 +50,8 @@
   <ItemGroup>
     <Compile Include="ChkArg.cs" />
     <Compile Include="GLChk.cs" />
+    <Compile Include="MathHelpers.cs" />
+    <Compile Include="ParameterSpace.cs" />
     <Compile Include="ResourceTracker.cs" />
     <Compile Include="OpenTK_Window.cs" />
     <Compile Include="Program.cs" />
