@@ -32,8 +32,10 @@ namespace img3
         {
             // AddSlice(0.006f, 0.031f, 0.040f);
             AddSlice(0.0160f, 0.0420f, 0.0530f);
-            AddSlice(0.0220f, 0.0475f, 0.0576f);
-            AddSlice(0.0420f, 0.0586f, 0.0655f);
+            AddSlice(0.0220f, 0.0480f, 0.0576f);
+            AddSlice(0.0306f, 0.0540f, 0.0610f);
+            AddSlice(0.0383f, 0.0580f, 0.0650f);
+            AddSlice(0.0420f, 0.0590f, 0.0655f);
             AddSlice(0.0620f, 0.0612f, 0.0680f);
             AddSlice(0.0820f, 0.0590f, 0.0598f);
             AddSlice(0.1000f, 0.0550f, 0.0590f);

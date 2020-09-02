@@ -156,6 +156,16 @@ namespace LearnOpenGL
             GLChk.GetError();
         }
 
+        public void Uniform(string name, Vector3 value)
+        {
+            GL.Uniform3(
+                location: this.GetUniformLocation(name),
+                v0: value[0],
+                v1: value[1],
+                v2: value[2]);
+            GLChk.GetError();
+        }
+
         public void Uniform(string name, Vector4 value)
         {
             GL.Uniform4(

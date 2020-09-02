@@ -14,16 +14,7 @@ const float two_pi = 6.283185307179586476925286766559;
 
 float random(vec2 st)
 {
-    return fract(
-        sin(
-            dot(
-                st.xy,
-                vec2(
-                    12.9898,
-                    78.233)
-            )
-        ) * 43758.5453123
-    );
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
 }
 
 // bias
@@ -61,6 +52,15 @@ void main()
         vec4 color21 = texture(inputTexture, texel0 + vec2(+step.x,     0.0));
         vec4 color10 = texture(inputTexture, texel0 + vec2(    0.0, -step.y));
         vec4 color12 = texture(inputTexture, texel0 + vec2(    0.0, +step.y));
+
+        // Add the velocity to the surface texture.
+        if (false)
+        {
+            color01.rg += color01.ba / 100.0;
+            color21.rg += color21.ba / 100.0;
+            color10.rg += color10.ba / 100.0;
+            color12.rg += color12.ba / 100.0;
+        }
 
         if (false)
         {

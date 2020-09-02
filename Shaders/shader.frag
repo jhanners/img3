@@ -18,7 +18,7 @@ uniform vec2 diffusion = vec2(1.0, 0.5);
 uniform float deltaTime;
 uniform float time;
 uniform int laplacian;
-uniform bool flow = true;
+uniform int flow = 0;
 
 out vec4 FragColor;
 
@@ -28,9 +28,23 @@ float _1_over_sqrt_4 = 0.5;                // 1/2
 float _1_over_sqrt_5 = 0.4472135954999579;
 float _1_over_sqrt_8 = 0.5 * _1_over_sqrt_2;
 
-float velocity_decay = 0.0000001;
+float velocity_decay = 0.999;
+float maximum_velocity = 0.002;
+
+// float twist_magnitude = 0.5;
+// float twist_period = 20.0;
+float twist_magnitude = sin(2 * pi * time * 23) * 1.0;
+float twist_period = sin(2 * pi * time * 9) * 10.0 + 10;
+
+float whorl_radius = 0.40;
+float whorl_period = sin(2 * pi * time * 21) + 45.0;
 
 float rand(float n){return fract(sin(n) * 43758.5453123);}
+float random(vec2 st)
+{
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
 
 void main()
 {
@@ -47,13 +61,14 @@ void main()
     vec2 texel;
     vec2 velocity;
 
-    if (flow)
+    if (flow != 0)
     {
         // fluid flow
 
         vec2 velocity0 = texture(inputTexture, texel0).ba;
         velocity0.x *= screenResolution.y / screenResolution.x;
-        vec2 texel1 = texel0 - velocity0 * 50.0 * deltaTime;
+        // vec2 texel1 = texel0 - velocity0 * 50.0 * deltaTime;
+        vec2 texel1 = texel0 - velocity0 * deltaTime;
 
         vec2 v00 = texture(inputTexture, texel1 + vec2(+step.x, +step.y)).ba;
         vec2 v01 = texture(inputTexture, texel1 + vec2(+step.x,       0)).ba;
@@ -70,12 +85,13 @@ void main()
                           (v01 + v21 - v10 - v12) * vec2(2,-2) +
                           v11 * -4) / 8;
 
-        texel = texel0 - v11 * 50.0 * deltaTime;
+        // texel = texel0 - v11 * 50.0 * deltaTime;
+        texel = texel0 - v11 * deltaTime;
     }
     else
     {
         texel = texel0;
-        velocity = vec2(0, 0);
+        velocity = texture(inputTexture, texel).ba;
     }
 
     // diffusion
@@ -139,10 +155,10 @@ void main()
             {
                 // 3x3 cross kernel (no corners, with a bit of noise)
 
-                float rnd0 = 1.0 + rand(uv.r + step.x) / 100.0;
-                float rnd1 = 1.0 + rand(uv.r - step.x) / 100.0;
-                float rnd2 = 1.0 + rand(uv.g + step.x) / 100.0;
-                float rnd3 = 1.0 + rand(uv.g - step.x) / 100.0;
+                float rnd0 = 1.0 + random(uv.rg + step.xy) / 100.0;
+                float rnd1 = 1.0 + random(uv.rg - step.xy) / 100.0;
+                float rnd2 = 1.0 + random(uv.gr + step.yx) / 100.0;
+                float rnd3 = 1.0 + random(uv.gr - step.yx) / 100.0;
 
                 vec2 uv0 = texture(inputTexture, texel + vec2(-step.x,     0.0)).rg;
                 vec2 uv1 = texture(inputTexture, texel + vec2(+step.x,     0.0)).rg;
@@ -172,75 +188,86 @@ void main()
         }
 
         // If we're close to the brush, give velocity a nudge.
-        if (dist < 500.0)
+        if ((flow != 0) && (dist < 500.0))
         {
-            velocity += 0.1 * brushVelocity / (dist * dist);
+            velocity += brushVelocity / dist; // / (dist * dist);
         }
     }
 
-    // Spinning fountain at the center of the screen.
-    if (false)
+    // noise
+    if (brush.a == 3.0)
     {
-        vec2 dist2 = (texel.xy - vec2(0.5,0.5)) * screenResolution;
-        float dist = sqrt(dot(dist2, dist2));
-        if (dist < 50.0)
-        {
-            float magnitude = 0.001; // * cos(time) * sin(time);
-            velocity += magnitude * vec2(sin(time * 1.0), cos(time * 1.0)) / (dist * dist);
-        }
     }
 
-    // Pushing outward from the center.
-    if (true)
+    if (flow != 0)
     {
-        vec2 dist2 = (texel.xy - vec2(0.5,0.5)) * screenResolution;
-        float dist = sqrt(dot(dist2, dist2));
-        float radius = max(screenResolution.x, screenResolution.y);
-        if (dist <= radius)
+        // Spinning fountain at the center of the screen.
+        if (false)
         {
-            float height = sqrt(radius * radius - dist * dist);
-            height /= radius;
-            velocity += 0.000000001 * height * dist2;
+            vec2 dist2 = (texel.xy - vec2(0.5,0.5)) * screenResolution;
+            float dist = sqrt(dot(dist2, dist2));
+            if (dist < 50.0)
+            {
+                velocity += maximum_velocity * vec2(sin(time * 1.0), cos(time * 1.0));
+            }
         }
-    }
 
-    if (false)
-    {
-        vec2 dist2 = (texel.xy - vec2(0.5,0.45)) * screenResolution;
-        float dist = sqrt(dot(dist2, dist2));
-        if (dist < 500.0)
+        // Pushing/pushing outward from the center.
+        if (true)
         {
-            float magnitude = abs(sin(time)) * deltaTime * 10;
-            velocity += 0.1 * vec2(magnitude, 0) / (dist * dist);
+            vec2 dist2 = (-texel.xy +vec2(0.5,0.5)) * screenResolution;
+            float dist = sqrt(dot(dist2, dist2));
+            float radius = max(screenResolution.x, screenResolution.y) / 2;
+            if (dist <= radius)
+            {
+                float height = sqrt(radius * radius - dist * dist);
+                height /= radius;
+                vec2 vel = maximum_velocity * height * dist2 / dist;
+                vel.x *= screenResolution.y / screenResolution.x;
+                velocity += vel;
+            }
         }
-    }
+
+        // pulling inward from the center with twist.
+        if (true)
+        {
+            vec2 center = vec2(0.5, 0.5);
+            float whorl_radians = 2.0 * pi * time / whorl_period;
+            center.x += cos(whorl_radians) * whorl_radius;
+            center.y += sin(whorl_radians) * whorl_radius;
+            vec2 dist2 = (-center +texel.xy) * screenResolution;
+            float dist = sqrt(dot(dist2, dist2));
+            float radius = max(screenResolution.x, screenResolution.y) / 2;
+            if ((dist >= 10.0) && (dist <= radius))
+            {
+                float height = sqrt(radius * radius - dist * dist);
+                height /= radius;
+                vec3 unitz = vec3(0, 0, 1);
+                vec3 dist3 = vec3(dist2.xy, 0);
+                vec3 twist = normalize(cross(unitz, dist3));
+                vec2 vel = maximum_velocity * height * dist2 / dist;
+                // vel += twist_magnitude * sin(2 * pi * time / twist_period) * twist.xy / dist;
+                vel.x *= screenResolution.y / screenResolution.x;
+                velocity += vel;
+            }
+        }
+
+        if (false)
+        {
+            vec2 dist2 = (texel.xy - vec2(0.5,0.45)) * screenResolution;
+            float dist = sqrt(dot(dist2, dist2));
+            if (dist < 500.0)
+            {
+                float magnitude = abs(sin(time)) * deltaTime * 10;
+                velocity += maximum_velocity * vec2(magnitude, 0) / (dist * dist);
+            }
+        }
     
-    // decay velocity
+        // decay velocity
+        velocity *= velocity_decay;
 
-    if (false)
-    {
-        if (velocity.x > 0)
-        {
-            velocity.x = max(0, velocity.x - velocity_decay);
-        }
-        else if (velocity.x < 0)
-        {
-            velocity.x = min(0, velocity.x + velocity_decay);
-        }
-
-        if (velocity.y > 0)
-        {
-            velocity.y = max(0, velocity.y - velocity_decay);
-        }
-        else if (velocity.y < 0)
-        {
-            velocity.y = min(0, velocity.y + velocity_decay);
-        }
-    }
-
-    if (true)
-    {
-        velocity *= 0.999;
+        velocity.x = clamp(velocity.x, -1.0, 1.0);
+        velocity.y = clamp(velocity.y, -1.0, 1.0);
     }
 
     // clamp output

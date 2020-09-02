@@ -57,6 +57,8 @@ namespace LearnOpenGL
 
         private float time;
         private float lastFpsTime;
+        private float lastDotTime;
+        private readonly float dotInterval = 10.0f;
         private int frameCounter;
 
         private float feed = 0.5f;
@@ -82,10 +84,10 @@ namespace LearnOpenGL
         private int renderIterationCount = 50;
         private int renderIterationCountIncrement = 0;
 
-        private float brushWipeCanvas = 1.0f;
-        private float brushPaintDot = 2.0f;
-        private float brushPaintNoise = 3.0f;
-        private int laplacian = 3;
+        private static readonly float brushWipeCanvas = 1.0f;
+        private static readonly float brushPaintDot = 2.0f;
+        private static readonly float brushPaintNoise = 3.0f;
+        private int laplacian = 1;
 
         private float walkSegmentDurationSeconds = 10.0f;
         private float walkDurationRemaining = 0.0f;
@@ -93,10 +95,15 @@ namespace LearnOpenGL
         private float walkKillIncrmentPerSecond;
         private float walkTargetFeed;
         private float walkTargetKill;
-        private bool isWalking = false;
+        private bool isWalkEnabled = true;
+        private bool isFlowEnabled = true;
 
         private Random random = new Random();
 
+        private float lightRadius = 5.0f;
+        private float lightHeight = 1.5f;
+        private float lightPeriod = 60.0f;
+        private Vector3 lightCenter = new Vector3(0.5f, 0.5f, 0.0f);
 
         public Window(
             int width,
@@ -246,7 +253,7 @@ namespace LearnOpenGL
 
         protected override void OnMove(EventArgs e)
         {
-            DoResize();
+            // DoResize();
 
             base.OnMove(e);
         }
@@ -289,17 +296,35 @@ namespace LearnOpenGL
             float deltaTime = Math.Min(this.maxAllowedDeltaTime, (float)e.Time / this.renderIterationCount);
             this.frameCounter++;
 
+            if (this.lastDotTime == 0)
+            {
+                this.lastDotTime = -this.dotInterval + 1;
+            }
+
+            if ((this.time - this.lastDotTime) > this.dotInterval)
+            {
+                this.brush = new Vector4(0.5f, 0.5f, 0.0f, Window.brushPaintDot);
+                this.lastDotTime = this.time;
+            }
+
             //float currentFeed = this.feed + (float)Math.Cos(this.time / 1.9) * this.feedMagnitude;
             //float currentKill = this.kill + (float)Math.Cos(this.time / 2.1) * this.killMagnitude;
 
+            float lightAngleRadians = 2.0f * (float)Math.PI * this.time / this.lightPeriod;
+            Vector3 lightPosition = new Vector3(
+                this.lightRadius * (float)Math.Cos(lightAngleRadians),
+                this.lightRadius * (float)Math.Sin(lightAngleRadians),
+                this.lightHeight)
+                + this.lightCenter;
+
             float currentFeed = this.feed;
             float currentKill = this.kill;
-
+            
             Vector2 warpedFeedKill = this.feedKillWarp.Warp(currentFeed, currentKill);
             float warpedFeed = warpedFeedKill.X;
             float warpedKill = warpedFeedKill.Y;
 
-            if (this.isWalking)
+            if (this.isWalkEnabled)
             {
                 this.walkDurationRemaining -= (float)e.Time;
                 this.feed += this.walkFeedIncrementPerSecond * (float)e.Time;
@@ -380,6 +405,13 @@ namespace LearnOpenGL
                 // GL.MemoryBarrier(MemoryBarrierFlags.FramebufferBarrierBit);
 
                 //
+                // Set per-frame variables.
+                //
+
+                // Only flow on the last frame we render in this pass.
+                bool isFlowing = this.isFlowEnabled && (i == this.renderIterationCount - 1);
+
+                //
                 // Draw scene
                 //
 
@@ -399,6 +431,7 @@ namespace LearnOpenGL
                 this.shaderProgram.Uniform("laplacian", this.laplacian);
                 this.shaderProgram.Uniform("screenResolution", new Vector2(this.Width, this.Height));
                 this.shaderProgram.Uniform("time", this.time);
+                this.shaderProgram.Uniform("flow", (int)(isFlowing ? 1 : 0));
                 this.surfaceVAO.BindVertexArray();
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
@@ -420,6 +453,7 @@ namespace LearnOpenGL
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
             this.screenShader.UseProgram();
+            this.screenShader.Uniform("lightPosition", lightPosition);
             this.screenShader.Uniform("screenResolution", new Vector2(this.Width, this.Height));
             this.screenShader.Uniform("time", time);
             textureA.BindTexture(0);
@@ -439,7 +473,7 @@ namespace LearnOpenGL
 
         private void InitBrush()
         {
-            this.brush = new Vector4(0.0f, 0.0f, 0.0f, this.brushWipeCanvas);
+            this.brush = new Vector4(0.0f, 0.0f, 0.0f, Window.brushWipeCanvas);
         }
 
         private void PaintWithBrush(float x, float y)
@@ -448,7 +482,7 @@ namespace LearnOpenGL
                 x / this.Width,
                 (this.Height - y) / this.Height,
                 0.0f,
-                this.brushPaintDot);
+                Window.brushPaintDot);
 
             this.currentMousePosition = new Vector2(
                 x / this.Width,
@@ -501,11 +535,15 @@ namespace LearnOpenGL
             switch (e.KeyChar)
             {
                 case 'w':
-                    this.isWalking = !this.isWalking;
-                    if (this.isWalking)
+                    this.isWalkEnabled = !this.isWalkEnabled;
+                    if (this.isWalkEnabled)
                     {
                         this.walkDurationRemaining = 0;
                     }
+                    break;
+
+                case 'l':
+                    this.isFlowEnabled = !this.isFlowEnabled;
                     break;
 
                 case 'F':
@@ -561,11 +599,11 @@ namespace LearnOpenGL
                     break;
 
                 case '.':
-                    this.brush = new Vector4(0.5f, 0.5f, 0.0f, this.brushPaintDot);
+                    this.brush = new Vector4(0.5f, 0.5f, 0.0f, Window.brushPaintDot);
                     break;
 
                 case 'n':
-                    this.brush = new Vector4((float)this.random.Next(), (float)this.random.Next(), (float)this.random.Next(), this.brushPaintNoise);
+                    this.brush = new Vector4((float)this.random.Next(), (float)this.random.Next(), (float)this.random.Next(), Window.brushPaintNoise);
                     break;
 
                 case '1':
